@@ -6,6 +6,9 @@ from heapq import *
 
 from btcsim import *
 
+#Kế thừa từ lớp Miner cơ bản
+#Hành vi xấu: chỉ chấp nhận các block do chính nó đào được (t_block.miner_id != self.miner_id)
+#Khi nhận block hợp lệ (do nó đào), nó sẽ cập nhật chain_head nếu block mới có height cao hơn
 class BadMiner(Miner):
     def add_block(self, t_block):
         self.blocks[hash(t_block)] = t_block
@@ -23,15 +26,16 @@ class BadMiner(Miner):
             self.mine_block()
 
 
-
+#Khởi tạo thời gian, hàng đợi sự kiện và block gốc (genesis block)
 t = 0.0
 event_q = []
 
 # root block
 seed_block = Block(None, 0, t, -1, 0, 1)
 
+#Tạo 6 miner với hash rate ngẫu nhiên
+#Thiết lập một miner mạnh (attacker) chiếm 51% sức mạnh tính toán (để thực hiện tấn công 51%)
 
-# set up some miners with random hashrate
 numminers = 6
 hashrates = numpy.random.exponential(1.0, numminers)
 
@@ -43,6 +47,7 @@ hashrates[numminers-1] = hashrates.sum() * (attacker_strength/(1.0 - attacker_st
 hashrates = hashrates/hashrates.sum()
 
 miners = []
+#Tạo mạng ngẫu nhiên giữa các miner với độ trễ và băng thông ngẫu nhiên
 for i in range(numminers):
 	miners.append(Miner(i, hashrates[i] * 1.0/600.0, 200*1024, seed_block, event_q, t))
 
@@ -65,6 +70,8 @@ for i in range(numminers):
 
 
 # simulate some days of block generation
+#Mô phỏng hoạt động trong 1 ngày (86400 giây)
+#Xử lý các sự kiện theo thứ tự thời gian từ hàng đợi ưu tiên
 curday = 0
 maxdays = 5*7*24*60*60
 maxdays = 1*24*60*60
@@ -95,6 +102,7 @@ for i in range(numminers):
 main_chain = dict()
 main_chain[hash(seed_block)] = 1
 
+#Vẽ đồ thị thể hiện sự phát triển của chuỗi block chính theo thời gian
 while t_hash != None:
 	t_block = mine.blocks[t_hash]
 	
@@ -117,6 +125,8 @@ pylab.figure()
 
 pylab.plot([0, numpy.max(hashrates)*1.05], [0, numpy.max(hashrates)*1.05], '-', color='0.4')
 
+#So sánh tỷ lệ hash rate và phần thưởng
+#Vẽ đồ thị so sánh giữa hash rate của từng miner và phần thưởng tương ứng nhận được
 for i in range(numminers):
 	#print('%2d: %0.3f -> %0.3f' % (i, hashrates[i], miners[i].reward/rewardsum))
 	pylab.plot(hashrates[i], miners[i].reward/rewardsum, 'k.')
@@ -126,7 +136,7 @@ pylab.xlabel('hashrate')
 pylab.ylabel('reward')
 
 
-
+#Đếm số block không nằm trong chuỗi chính (block mồ côi)
 pylab.figure()
 orphans = 0
 for i in range(numminers):
